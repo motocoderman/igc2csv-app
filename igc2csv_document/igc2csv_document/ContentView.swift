@@ -259,11 +259,17 @@ struct ContentView: View {
                     GridRow {
                         Text("Saved to:")
                             .fontWeight(.semibold)
+                        #if os(macOS)
                         Text(bPath.deletingLastPathComponent().path(percentEncoded: false))
                             .foregroundStyle(.secondary)
                             .font(.caption)
                             .lineLimit(2)
                             .truncationMode(.middle)
+                        #else
+                        Text("App Documents (use Share to export)")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        #endif
                     }
                 }
             }
@@ -271,6 +277,7 @@ struct ContentView: View {
             .background(Color(.secondarySystemFill))
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
+            #if os(macOS)
             HStack(spacing: 16) {
                 Button("Convert Another File") {
                     resetState()
@@ -278,7 +285,6 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
-                #if os(macOS)
                 if let bPath = result.bRecordCSVPath {
                     Button("Show in Finder") {
                         NSWorkspace.shared.selectFile(bPath.path, inFileViewerRootedAtPath: bPath.deletingLastPathComponent().path)
@@ -290,16 +296,39 @@ struct ContentView: View {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.bordered)
-                #else
-                // iOS/visionOS share button
-                if let bPath = result.bRecordCSVPath {
-                    ShareLink(item: bPath) {
-                        Label("Share CSV", systemImage: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                }
-                #endif
             }
+            #else
+            // iOS/visionOS - organized in rows
+            VStack(spacing: 12) {
+                Button("Convert Another File") {
+                    resetState()
+                    isFilePickerPresented = true
+                }
+                .buttonStyle(.borderedProminent)
+
+                if let bPath = result.bRecordCSVPath {
+                    HStack(spacing: 12) {
+                        Text("B-Records:")
+                            .foregroundStyle(.secondary)
+                        ShareLink(item: bPath) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                if let kPath = result.kRecordCSVPath {
+                    HStack(spacing: 12) {
+                        Text("K-Records:")
+                            .foregroundStyle(.secondary)
+                        ShareLink(item: kPath) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+            #endif
         }
     }
 
@@ -390,11 +419,18 @@ struct ContentView: View {
             return
         }
 
-        // Output to same directory as input file
-        let outputDirectory = sourceURL.deletingLastPathComponent()
-
         // Get base filename without extension
         let baseFileName = sourceURL.deletingPathExtension().lastPathComponent
+
+        // Determine output directory based on platform
+        let outputDirectory: URL
+        #if os(macOS)
+        // On macOS, write to same directory as input file
+        outputDirectory = sourceURL.deletingLastPathComponent()
+        #else
+        // On iOS/visionOS, write to app's Documents folder (sandbox-safe)
+        outputDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        #endif
 
         appState = .converting
         errorMessage = nil
@@ -402,13 +438,15 @@ struct ContentView: View {
         // Perform conversion on background thread
         Task {
             do {
-                // Re-acquire security-scoped access for writing
+                #if os(macOS)
+                // Re-acquire security-scoped access for writing on macOS
                 let hasAccess = sourceURL.startAccessingSecurityScopedResource()
                 defer {
                     if hasAccess {
                         sourceURL.stopAccessingSecurityScopedResource()
                     }
                 }
+                #endif
 
                 let result = try converter.convert(
                     content: content,
@@ -503,11 +541,32 @@ struct AboutView: View {
             Divider()
                 .padding(.horizontal, 40)
 
+            #if os(macOS)
             Text("Drop an IGC file onto the window or use the file picker to get started.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
+            #else
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Getting Started")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text("Use the file picker to select an IGC file, then tap Share to export the CSV files.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("Saving to Files")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.top, 4)
+                Text("To save to the Files app: tap Share, scroll down in the share sheet, and tap \"Save to Files\". If not visible, scroll to the end of the actions and tap \"Edit Actions\" to enable it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            .multilineTextAlignment(.leading)
+            #endif
 
             Button("Done") {
                 dismiss()
@@ -516,7 +575,11 @@ struct AboutView: View {
             .padding(.top)
         }
         .padding(30)
+        #if os(macOS)
         .frame(minWidth: 400, minHeight: 400)
+        #else
+        .frame(minWidth: 350, minHeight: 500)
+        #endif
     }
 }
 

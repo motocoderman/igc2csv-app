@@ -166,12 +166,12 @@ public struct IGCConverter: Sendable {
         }
 
         // Write CSV files
-        let bCSVPath = outputDirectory.appendingPathComponent("\(baseFileName).csv")
+        let bCSVPath = outputDirectory.appendingPathComponent("\(baseFileName)_B.csv")
         try writeBRecordsCSV(bRecords, extensions: bExtensions, to: bCSVPath)
 
         var kCSVPath: URL? = nil
         if !kRecords.isEmpty {
-            kCSVPath = outputDirectory.appendingPathComponent("\(baseFileName)_k.csv")
+            kCSVPath = outputDirectory.appendingPathComponent("\(baseFileName)_K.csv")
             try writeKRecordsCSV(kRecords, extensions: kExtensions, to: kCSVPath!)
         }
 
