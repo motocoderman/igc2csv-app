@@ -39,4 +39,4 @@
 
   Contact
 
-  If you have questions about this privacy policy, contact: motocoderman@mac.com
+  If you have questions about this privacy policy, contact: igc2csv@icloud.com
